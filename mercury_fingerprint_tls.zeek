@@ -35,10 +35,10 @@ redef record SSL::Info += {
 };
 
 function set_session(c: connection)
-	{
+    {
     if ( ! c?$mercury_tls_client_extensions )
     	c$mercury_tls_client_extensions = ""
-	}
+    }
 
 function handle_extension_type_code(code: count)
     {
@@ -47,7 +47,7 @@ function handle_extension_type_code(code: count)
     }
 
 event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec)
-	{
+    {
     set_session(c);
     local client_ciphers: string = "";
     for ( i in ciphers )
@@ -58,17 +58,17 @@ event ssl_client_hello(c: connection, version: count, record_version: count, pos
         c$ssl$mercury_tls = fmt("(%04x)(%s)(%s)", version, client_ciphers, c$mercury_tls_client_extensions);
     else
         c$ssl$mercury_tls = fmt("(%04x)(%s)", version, client_ciphers);
-	}
+    }
 
 
 event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
-	{
-	if ( is_orig )
-		{
+    {
+    if ( is_orig )
+        {
         set_session(c);
-		c$mercury_tls_client_extensions += fmt("(%04x", code);
+        c$mercury_tls_client_extensions += fmt("(%04x", code);
         if ( code in ext_data_extract )
             c$mercury_tls_client_extensions += fmt("%04x", |val|) + bytestring_to_hexstr(val);
         c$mercury_tls_client_extensions += ")";
-		}
-	}
+        }
+    }
