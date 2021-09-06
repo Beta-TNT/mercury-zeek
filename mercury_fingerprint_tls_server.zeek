@@ -35,34 +35,34 @@ redef record SSL::Info += {
 };
 
 function set_session(c: connection)
-	{
+    {
     if ( ! c?$mercury_tls_server_extensions )
     	c$mercury_tls_server_extensions = "";
-	}
+    }
 
 function handle_extension_type_code(code: count)
-	{
+    {
     if ( code in grease_single_int )
         code = 0x0a0a;
-	}
+    }
 	
 event ssl_server_hello(c: connection, version: count, record_version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count)
-	{
+    {
     set_session(c);
     if ( c?$mercury_tls_server_extensions && |c$mercury_tls_server_extensions|>0 )
         c$ssl$mercury_tls_server = fmt("(%04x)(%04x)(%s)", version, cipher, c$mercury_tls_server_extensions);
     else
         c$ssl$mercury_tls_server = fmt("(%04x)(%04x)", version, cipher);
-	}
+    }
 
 event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
-	{
-	if ( ! is_orig )
-		{
+    {
+    if ( ! is_orig )
+        {
         set_session(c);
-		c$mercury_tls_server_extensions += fmt("(%04x", code);
+        c$mercury_tls_server_extensions += fmt("(%04x", code);
         if ( code in ext_data_extract )
             c$mercury_tls_server_extensions += fmt("%04x", |val|) + bytestring_to_hexstr(val);
         c$mercury_tls_server_extensions += ")";
-		}
-	}
+        }
+    }
