@@ -7,9 +7,9 @@
 # https://github.com/cisco/mercury/blob/main/python/pmercury/protocols/tls_server.py
 # https://github.com/cisco/mercury/blob/main/python/pmercury/utils/tls_utils.py
 
-module MercuryTLSServer;
+module MercuryTlsServer;
 
-# extension code ref: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
+# extension type code ref: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
 const ext_data_extract: set[count] = {
     0x0001, 0x0005, 0x0007, 0x0008, # max_fragment_length, status_request, client_authz, server_authz
     0x0009, 0x000a, 0x000b, 0x000d, # cert_type, supported_groups, ec_point_formats, signature_algorithms
@@ -26,12 +26,8 @@ const grease_single_int: set[count] = {
     0xcaca, 0xdada, 0xeaea, 0xfafa
 };
 
-type mercuryTlsServerFp: record {
-    extensions:      string &default="";
-};
-
 redef record connection += {
-    mecuryTlsServer: mercuryTlsServerFp &optional;
+    mercury_tls_server_extensions: string &default="";
 };
 
 redef record SSL::Info += {
@@ -40,25 +36,21 @@ redef record SSL::Info += {
 
 function set_session(c: connection)
 	{
-    if (!c?$mecuryTlsServer)
-    	{
-        local newMercury: mercuryTlsServerFp;
-        newMercury$extensions = "";
-        c$mecuryTlsServer = newMercury;
-        }
+    if ( ! c?$mercury_tls_server_extensions )
+    	c$mercury_tls_server_extensions = "";
 	}
 
 function handle_extension_type_code(code: count)
-    {
-        if ( code in grease_single_int )
-            code = 0x0a0a;
-    }
-
+	{
+    if ( code in grease_single_int )
+        code = 0x0a0a;
+	}
+	
 event ssl_server_hello(c: connection, version: count, record_version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count)
 	{
     set_session(c);
-    if (|c$mecuryTlsServer$extensions|>0)
-        c$ssl$mercury_tls_server = fmt("(%04x)(%04x)(%s)", version, cipher, c$mecuryTlsServer$extensions);
+    if ( c?$mercury_tls_server_extensions && |c$mercury_tls_server_extensions|>0 )
+        c$ssl$mercury_tls_server = fmt("(%04x)(%04x)(%s)", version, cipher, c$mercury_tls_server_extensions);
     else
         c$ssl$mercury_tls_server = fmt("(%04x)(%04x)", version, cipher);
 	}
@@ -68,9 +60,9 @@ event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
 	if ( ! is_orig )
 		{
         set_session(c);
-		c$mecuryTlsServer$extensions += fmt("(%04x", code);
-        if (code in ext_data_extract)
-            c$mecuryTlsServer$extensions += fmt("%04x", |val|) + bytestring_to_hexstr(val);
-        c$mecuryTlsServer$extensions += ")";
+		c$mercury_tls_server_extensions += fmt("(%04x", code);
+        if ( code in ext_data_extract )
+            c$mercury_tls_server_extensions += fmt("%04x", |val|) + bytestring_to_hexstr(val);
+        c$mercury_tls_server_extensions += ")";
 		}
 	}
