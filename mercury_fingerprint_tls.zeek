@@ -1,4 +1,4 @@
-# CISCO Mercyry TLS Fingerprint
+# CISCO Mercury TLS Fingerprint
 # zeek version implemented by Beta-TNT
 
 # mercury tls fingerprint
