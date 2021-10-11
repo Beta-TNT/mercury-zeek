@@ -35,10 +35,10 @@ redef record SSL::Info += {
 };
 
 function set_session(c: connection)
-    {
+	{
     if ( ! c?$mercury_tls_client_extensions )
-    	c$mercury_tls_client_extensions = ""
-    }
+    	c$mercury_tls_client_extensions = "";
+	}
 
 function handle_extension_type_code(code: count)
     {
@@ -47,28 +47,66 @@ function handle_extension_type_code(code: count)
     }
 
 event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec)
-    {
+	{
     set_session(c);
     local client_ciphers: string = "";
     for ( i in ciphers )
         {
-        client_ciphers += fmt("%04x", ciphers[i]);
+        if ( ciphers[i] in grease_single_int)
+            client_ciphers += "0a0a";
+        else
+            client_ciphers += fmt("%04x", ciphers[i]);
         }
     if ( c?$mercury_tls_client_extensions && |c$mercury_tls_client_extensions|>0 )
         c$ssl$mercury_tls = fmt("(%04x)(%s)(%s)", version, client_ciphers, c$mercury_tls_client_extensions);
     else
         c$ssl$mercury_tls = fmt("(%04x)(%s)", version, client_ciphers);
-    }
+	}
 
 
 event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
-    {
-    if ( is_orig )
-        {
+	{
+	if ( is_orig )
+		{
         set_session(c);
-        c$mercury_tls_client_extensions += fmt("(%04x", code);
-        if ( code in ext_data_extract )
-            c$mercury_tls_client_extensions += fmt("%04x", |val|) + bytestring_to_hexstr(val);
-        c$mercury_tls_client_extensions += ")";
-        }
-    }
+        if ( code in grease_single_int)
+            {
+            c$mercury_tls_client_extensions += fmt("(0a0a%04x%s)", |val|, bytestring_to_hexstr(val));
+            }
+        else
+            {
+            c$mercury_tls_client_extensions += fmt("(%04x", code);
+            if ( code in ext_data_extract )
+                {
+                local client_ext:string = fmt("%04x", |val|);
+                if ( code == 0x000a || code == 0x002b )
+                    {
+                    local ext_len: count = 0;
+                    local ext_offset: count = 0;
+                    if ( code == 0x000a ) 
+                        ext_offset = 2;# supported_groups
+                    else    
+                        ext_offset = 1;# supported_versions
+                    ext_len = bytestring_to_count(val[0:ext_offset], F);
+                    client_ext += bytestring_to_hexstr(val[0:ext_offset]);
+                    local ext_pt: count = 0;
+                    while ( ext_pt < ext_len)
+                        {
+                        local ext_supported: string = val[ ext_offset + ext_pt : ext_offset + ext_pt + 2 ];
+                        if ( bytestring_to_count(ext_supported, F) in grease_single_int )
+                            client_ext += "0a0a";
+                        else
+                            client_ext += bytestring_to_hexstr(ext_supported);
+                        ext_pt += 2;
+                        }
+                    }
+                else
+                    {
+                    client_ext += bytestring_to_hexstr(val);
+                    }
+                c$mercury_tls_client_extensions += client_ext;
+                }
+            c$mercury_tls_client_extensions += ")";
+            }
+		}
+	}
